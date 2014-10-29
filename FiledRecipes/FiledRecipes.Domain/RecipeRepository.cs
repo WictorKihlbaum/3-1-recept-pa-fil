@@ -58,7 +58,7 @@ namespace FiledRecipes.Domain
         {
             // Throws an exception if the path is invalid.
             _path = Path.GetFullPath(path);
-
+            
             _recipes = new List<IRecipe>();
         }
 
@@ -125,6 +125,98 @@ namespace FiledRecipes.Domain
             {
                 // Use the () operator to raise the event.
                 handler(this, e);
+            }
+        }
+
+        public void Load()
+        {
+            RecipeReadStatus status = new RecipeReadStatus();
+
+            Recipe recipe = null;
+
+            // Skapar lista som kan innehålla referenser till receptobjekt.
+            List<IRecipe> recipeList = new List<IRecipe>(); 
+            
+            // Öppnar textfilen för läsning.
+            using (StreamReader reader = new StreamReader(_path))
+            {
+                string line;
+
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (line == SectionRecipe)
+                    {
+                        status = RecipeReadStatus.New;           
+                    }
+
+                    else if (line == SectionIngredients)
+                    {
+                        status = RecipeReadStatus.Ingredient;
+                    }
+
+                    else if (line == SectionInstructions)
+                    {
+                        status = RecipeReadStatus.Instruction;
+                    }
+
+                    else
+                    {
+                        if (status == RecipeReadStatus.New)
+                        {
+                            recipe = new Recipe(line);
+                            recipeList.Add(recipe);
+                        }
+
+                        else if (status == RecipeReadStatus.Ingredient)
+                        {
+                            // Delar upp raden i delar som separeras åt med semikolon.
+                            string[] ingredients = line.Split(';');
+
+                            // Om antalet delar inte är tre kastas ett undantag.
+                            if (ingredients.Length != 3)
+                            {
+                                throw new FileFormatException();
+                            }
+
+                            // Skapar ett ingrediensobjekt för att sedan initiera det med 'Mängd', 'Mått' och 'Namn'.
+                            Ingredient ingredient = new Ingredient();
+
+                            ingredient.Amount = ingredients[0];
+                            ingredient.Measure = ingredients[1];
+                            ingredient.Name = ingredients[2];
+
+                            // Lägger till ingrediensen till receptets lista med ingredienser.
+                            recipe.Add(ingredient);
+                        }
+
+                        else if (status == RecipeReadStatus.Instruction)
+                        {
+                            // Lägger till raden till receptets lista med instruktioner.
+                            recipe.Add(line);
+                        }
+
+                        else
+                        {
+                            throw new FileFormatException();
+                        }
+                    }
+                }
+            }
+            // Sortera listan med recept med avseende på receptens namn.
+            _recipes = recipeList.OrderBy(r => r.Name).ToList();
+
+            // Tilldela avsedd egenskap i klassen, 'IsModified', ett värde som indikerar att listan med recept är oförändrad.
+            IsModified = false;
+
+            // Anropar metoden 'OnRecipesChanged' och skickar med parametern 'EventArgs.Empty'.
+            OnRecipesChanged(EventArgs.Empty);
+        }
+
+        public void save()
+        {
+            using (StreamWriter writer = new StreamWriter(_path))
+            {
+
             }
         }
     }
