@@ -144,21 +144,24 @@ namespace FiledRecipes.Domain
 
                 while ((line = reader.ReadLine()) != null)
                 {
+                    // Fortsätt till nästa rad om raden är tom.
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        continue;
+                    }
+
                     if (line == SectionRecipe)
                     {
                         status = RecipeReadStatus.New;           
                     }
-
                     else if (line == SectionIngredients)
                     {
                         status = RecipeReadStatus.Ingredient;
                     }
-
                     else if (line == SectionInstructions)
                     {
                         status = RecipeReadStatus.Instruction;
                     }
-
                     else
                     {
                         if (status == RecipeReadStatus.New)
@@ -166,7 +169,6 @@ namespace FiledRecipes.Domain
                             recipe = new Recipe(line);
                             recipeList.Add(recipe);
                         }
-
                         else if (status == RecipeReadStatus.Ingredient)
                         {
                             // Delar upp raden i delar som separeras åt med semikolon.
@@ -188,13 +190,11 @@ namespace FiledRecipes.Domain
                             // Lägger till ingrediensen till receptets lista med ingredienser.
                             recipe.Add(ingredient);
                         }
-
                         else if (status == RecipeReadStatus.Instruction)
                         {
                             // Lägger till raden till receptets lista med instruktioner.
                             recipe.Add(line);
                         }
-
                         else
                         {
                             throw new FileFormatException();
@@ -202,21 +202,38 @@ namespace FiledRecipes.Domain
                     }
                 }
             }
-            // Sortera listan med recept med avseende på receptens namn.
+            // Sorterar listan med recept i namnordning.
             _recipes = recipeList.OrderBy(r => r.Name).ToList();
 
-            // Tilldela avsedd egenskap i klassen, 'IsModified', ett värde som indikerar att listan med recept är oförändrad.
+            // Tilldelar avsedd egenskap i klassen, 'IsModified', ett värde som indikerar att listan med recept är oförändrad.
             IsModified = false;
 
             // Anropar metoden 'OnRecipesChanged' och skickar med parametern 'EventArgs.Empty'.
             OnRecipesChanged(EventArgs.Empty);
         }
 
-        public void save()
+        public void Save()
         {
             using (StreamWriter writer = new StreamWriter(_path))
             {
 
+                foreach (IRecipe Recipes in _recipes)
+                {
+                    writer.WriteLine(SectionRecipe);
+                    writer.WriteLine(Recipes.Name);
+                    writer.WriteLine(SectionIngredients);
+
+                    foreach (IIngredient Ingredients in Recipes.Ingredients)
+                    {
+                        writer.WriteLine("{0};{1};{2}", Ingredients.Amount, Ingredients.Measure, Ingredients.Name);
+                    }
+                    writer.WriteLine(SectionInstructions);
+
+                    foreach (string Instructions in Recipes.Instructions)
+                    {
+                        writer.WriteLine(Instructions);
+                    }
+                }
             }
         }
     }
